@@ -1,12 +1,15 @@
-"""pulsar-ui: placeholder package for the Pulsar local visualization dashboard.
+"""pulsar-ui: the Pulsar local read-only visualization service.
 
-This package intentionally contains no service or frontend code and declares
-no dependencies on any other pulsar package. Task U1 will implement the
-read-only dashboard on top of Run artefacts and data-lake format contracts.
+The package is a pure consumer of Pulsar's stable data contracts — the
+run artifacts (``run_manifest.json`` / ``events.parquet`` /
+``metrics_report.json``) and the local Parquet data lake — and never
+imports any pulsar code. :mod:`pulsar_ui.server` serves the GET-only
+dashboard API bound to 127.0.0.1; the web front-end (U2) and the static
+report generator (U3) live elsewhere in this repository.
 """
 
 from __future__ import annotations
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 __all__ = ["__version__"]
