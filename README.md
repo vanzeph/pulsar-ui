@@ -40,11 +40,42 @@ pulsar-ui --port 7800 --runs-dir ./runs --lake-dir ./lake
 
 浏览器访问 `http://127.0.0.1:7800/docs` 查看交互式 API 文档。
 
+## 静态报告（`pulsar_ui.report`）
+
+run 结束后可为该 run 生成一份自包含的静态 HTML 报告：数据与图表全部
+内嵌（纯 HTML + CSS + 内联 SVG，无脚本、无外部 CDN、零外部请求），
+双击即看、可离线分享；与看板读取同一套 run 工件，不依赖服务运行，
+零 pulsar 包依赖。
+
+```bash
+python -m pulsar_ui.report <run_dir>            # 产出 <run_dir>/report.html
+python -m pulsar_ui.report <run_dir> -o r.html  # 自定义输出路径
+```
+
+报告内容：工件状态、RunManifest 摘要（含实验分组与数据水位）、关键
+指标表、净值/回撤内嵌图、费用归因、逐笔成交表（含
+journal_digest）。契约语义与 `pulsar_ui.artifacts` 一致：工件
+schema_version 与生成器不匹配时输出明确的错误页（不做半解析），工件
+缺失时对应章节渲染明确空态。
+
+### pulsar-app 挂接（run 结束回调）
+
+pulsar-app 不需要 import 本包，也不需要改动代码结构：在 run 结束、
+三工件（`run_manifest.json` / `events.parquet` / `metrics_report.json`）
+落盘之后追加一行命令即可，报告写入 run 目录、随 RunManifest 一并归档：
+
+```bash
+python -m pulsar_ui.report "<该次 run 的 run 目录>"
+```
+
+（若本包以 `pip install pulsar-ui` 安装在 pulsar-app 同一环境，直接
+调用 `pulsar_ui.report.generate_report(run_dir)` 亦可。）
+
 ## 仓库状态
 
 - `pulsar_ui.server` — 只读查询服务（本任务 U1）
 - `web/` React+ECharts 前端 — U2
-- `pulsar_ui.report` 静态报告生成器 — U3
+- `pulsar_ui.report` — 静态报告生成器（U3：`python -m pulsar_ui.report <run_dir>`）
 
 测试包含真实工件样本（由 pulsar-core 的 `write_run_artifacts` 产出，
 见 `tests/fixtures/runs/`）与按湖布局契约合成的数据湖。
