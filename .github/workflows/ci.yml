@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  install:
+    name: pip installability smoke check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install from source (non-editable)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+
+      - name: Smoke import of the placeholder package
+        run: python -c "import pulsar_ui; print('install ok', pulsar_ui.__version__)"
+
+  topology-gate:
+    name: cross-repo topology gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch topology gate tool (versioned reference)
+        run: |
+          git clone --quiet https://github.com/vanzeph/pulsar-contracts.git /tmp/pulsar-contracts
+          git -C /tmp/pulsar-contracts checkout --quiet 4178b2ee27757b858922d26b7e1a532acf953e7e
+
+      - name: Topology check (pulsar-ui must depend on no pulsar package)
+        run: python /tmp/pulsar-contracts/tools/check_topology.py --repo "$GITHUB_WORKSPACE"
