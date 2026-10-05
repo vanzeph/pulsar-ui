@@ -24,3 +24,6 @@ dist/
 .idea/
 .vscode/
 .DS_Store
+
+# Web dashboard source (build output lives in src/pulsar_ui/static)
+web/node_modules/

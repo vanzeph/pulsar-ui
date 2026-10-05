@@ -17,6 +17,10 @@ Failure behaviour follows the design's reliability rules: a missing or
 unsupported artifact is a structured empty state on a 200 response, an
 unknown run id is a 404, and a malformed parameter is a 422 — never a
 stack trace. The service makes no outbound connections of any kind.
+
+The service also hosts the built web dashboard (``web/`` → committed
+under ``pulsar_ui/static/``) at ``/`` with an SPA fallback for the view
+routes; see :mod:`pulsar_ui.webapp`.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ from .artifacts import (
 from .factors import factor_ic, valid_factor_name
 from .lake import MAX_BARS_POINTS, LakeStore, valid_symbol
 from .settings import DEFAULT_PORT, HOST, Settings
+from .webapp import mount_web_app
 
 __all__ = ["DEFAULT_MAX_POINTS", "create_app", "main", "serve"]
 
@@ -101,25 +106,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     # -- service index ---------------------------------------------------------
-
-    @app.get("/", tags=["service"])
-    def index() -> dict[str, Any]:
-        return {
-            "service": "pulsar-ui",
-            "read_only": True,
-            "host": HOST,
-            "endpoints": [
-                "/api/runs",
-                "/api/runs/{run_id}/equity",
-                "/api/runs/{run_id}/trades",
-                "/api/runs/{run_id}/manifest",
-                "/api/factors/{name}/ic",
-                "/api/lake/coverage",
-                "/api/lake/bars/{symbol}",
-            ],
-            "runs_root": str(resolved.runs_root),
-            "lake_root": str(resolved.lake_root),
-        }
+    # "/" is the dashboard (see webapp.mount_web_app); the JSON service
+    # index lives there as the no-build fallback.
 
     # -- runs -------------------------------------------------------------------
 
@@ -231,6 +219,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return lake.bars(
             symbol, start=start_date, end=end_date, max_points=max_points
         )
+
+    # -- dashboard (static SPA hosting) ---------------------------------------
+    # Mounted last so the API routes above always match first; the mount
+    # serves the committed build output of web/ at "/" with an SPA fallback
+    # for the client-side view routes. When the build output is absent the
+    # app still comes up and "/" answers an explicit "not built" JSON index.
+    mount_web_app(app)
 
     return app
 

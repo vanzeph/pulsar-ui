@@ -27,7 +27,7 @@ jobs:
           python -c "from pulsar_ui.server import create_app; app = create_app(); print('app ok', len(app.routes), 'routes')"
 
   tests:
-    name: pytest suite (read-only surface, loopback bind, artifacts)
+    name: pytest suite (hosted web dashboard, read-only surface, loopback bind)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +41,29 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
 
-      - name: Run tests
+      - name: Run tests (serves and inspects the committed web build output)
         run: python -m pytest -v
+
+  web:
+    name: web dashboard build (reproducibility gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web dashboard from source (zero TS errors required)
+        run: tools/build_web.sh
+
+      - name: Built output matches what the package hosts
+        run: |
+          test -f src/pulsar_ui/static/index.html
+          test -n "$(find src/pulsar_ui/static/assets -name '*.js')"
+          grep -q 'id="root"' src/pulsar_ui/static/index.html
 
   topology-gate:
     name: cross-repo topology gate
