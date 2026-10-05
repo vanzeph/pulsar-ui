@@ -1,0 +1,52 @@
+name: socket-import-diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install pandas/pydantic/pytest
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pandas>=2.0" "pydantic>=2.5,<3" pytest
+      - name: Does import pandas pull socket?
+        run: |
+          python - <<'PY'
+          import sys
+          import pandas
+          print("pandas", pandas.__version__, "socket loaded:", "socket" in sys.modules)
+          PY
+      - name: Does plain pytest pull socket?
+        run: |
+          mkdir -p /tmp/diag && printf 'def test_nothing():\n    assert True\n' > /tmp/diag/test_x.py
+          python -m pytest -q /tmp/diag/test_x.py
+          python - <<'PY'
+          import subprocess, sys, textwrap
+          code = textwrap.dedent("""
+              import sys
+              import pytest
+              raise SystemExit(pytest.main(["-q", "/tmp/diag/test_x.py"]))
+          """)
+          # run pytest in-process-style to mirror CI: check sys.modules after
+          import sys
+          sys.argv = ["pytest", "-q", "/tmp/diag/test_x.py"]
+          import pytest
+          rc = pytest.main(sys.argv[1:])
+          print("socket loaded after pytest run:", "socket" in sys.modules)
+          raise SystemExit(rc)
+          PY
+      - name: importtime trace
+        run: |
+          python -X importtime -c "import pandas" 2> /tmp/it.txt || true
+          grep -E "\| socket$" /tmp/it.txt || echo "no socket in pandas importtime"
